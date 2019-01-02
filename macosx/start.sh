@@ -21,6 +21,7 @@ fi
 # nohup python PW_run.py &>/dev/null &
 
 # # start caddy
+# start caddy
 # nohup caddy -conf PW_Caddyfile &>/dev/null &
 
 
