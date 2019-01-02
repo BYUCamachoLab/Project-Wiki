@@ -1,8 +1,9 @@
 # If you have your own domain, replace "0.0.0.0:31415" with it.
 # In that situation, access your url with "https" prefix, i.e. "https://<your domain>".
-0.0.0.0:31415 {
+# 0.0.0.0:31415 {
+localhost:31415 {
     root ./
-    proxy / 127.0.0.1:31415 {
+    proxy / 127.0.0.1:8080 {
         transparent
     }
     log ../Project_Wiki_Data/log/caddy.log
