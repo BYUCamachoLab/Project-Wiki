@@ -29,81 +29,101 @@ $('#edit-btn').click( function(){
 
 var isMacOS = (navigator.appVersion.indexOf("Mac") != -1);
 document.addEventListener('keydown', function(e){
-	if(e.keyCode == 83 && ((e.ctrlKey && !isMacOS) || (e.metaKey && isMacOS))){
-		$('#save').click();
-		e.preventDefault();
-		return false;
-	}
+        if(e.keyCode == 83 && ((e.ctrlKey && !isMacOS) || (e.metaKey && isMacOS))){
+                setUnload(false); // don't show warning when saving
+                $('#save').click();
+                e.preventDefault();
+                return false;
+        }
 
-	if(e.keyCode === 27){
-		cancel_btn.click();
-		e.preventDefault();
-		return false;
-	}
+        if(e.keyCode === 27){
+                if (window.onbeforeunload == null){ // if nothing has been edited activate cancel
+                        cancel_btn.click(); 
+                }
+                else {
+                        history.back(); // if something has been edited activate back so that the warning is shown
+                }
+                e.preventDefault();
+                return false;
+        }
 });
 
 // close flashed error messages
 var i;
 for (i = 0; i < $('.closebtn').length; i++) {
-	$('.closebtn')[i].onclick = function(){
-		var div = this.parentElement;
+        $('.closebtn')[i].onclick = function(){
+                var div = this.parentElement;
 
-		div.style.opacity = "0";
-		setTimeout(function(){ div.style.display = "none"; }, 600);
-	}
+                div.style.opacity = "0";
+                setTimeout(function(){ div.style.display = "none"; }, 600);
+        }
 }
 
 // Close the dropdown menu if the user clicks outside of it
 window.onclick = function(event) {
-	if (!event.target.matches('.bars')) {
+        if (!event.target.matches('.bars')) {
 
-		var i;
-		for (i = 0; i < $('.menu-content').length; i++) {
-			var openDropdown = $('.menu-content')[i];
-			if (openDropdown.classList.contains('show')) {
-				openDropdown.classList.remove('show');
-			}
-		}
-	}
+                var i;
+                for (i = 0; i < $('.menu-content').length; i++) {
+                        var openDropdown = $('.menu-content')[i];
+                        if (openDropdown.classList.contains('show')) {
+                                openDropdown.classList.remove('show');
+                        }
+                }
+        }
 }
 
 // change img_dir to /static/emoji
 emojify.setConfig({ img_dir: '/static/emoji' });
 
+
 function update(e){
-	setOutput(e.getValue());
+        setOutput(e.getValue());
+        setUnload(true);
 }
 
 function setOutput(val){
-	var out = document.getElementById('out');
-	var old = out.cloneNode(true);
-	out.innerHTML = marked(val);
-	emojify.run(out);
-	MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
+        var out = document.getElementById('out');
+        var old = out.cloneNode(true);
+        out.innerHTML = marked(val);
+        emojify.run(out);
+        MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
 
-	var allold = old.getElementsByTagName("*");
-	if (allold === undefined) return;
+        var allold = old.getElementsByTagName("*");
+        if (allold === undefined) return;
 
-	var allnew = out.getElementsByTagName("*");
-	if (allnew === undefined) return;
+        var allnew = out.getElementsByTagName("*");
+        if (allnew === undefined) return;
 
-	for (var i = 0, max = Math.min(allold.length, allnew.length); i < max; i++) {
-		if (!allold[i].isEqualNode(allnew[i])) {
-			out.scrollTop = allnew[i].offsetTop;
-			return;
-		}
-	}
+        for (var i = 0, max = Math.min(allold.length, allnew.length); i < max; i++) {
+                if (!allold[i].isEqualNode(allnew[i])) {
+                        out.scrollTop = allnew[i].offsetTop;
+                        return;
+                }
+        }
+}
+
+function setUnload(set){
+        if (set == true){
+                window.onbeforeunload = function () {
+                        return true;
+                }
+        }
+        else {
+                window.onbeforeunload = null;
+        }
 }
 
 var editor = CodeMirror.fromTextArea(document.getElementById('code'), {
-	mode: 'gfm',
-	lineNumbers: true,
-	lineWrapping: true,
-	indentUnit: 4,
-	theme: 'base16-light',
-	extraKeys: {"Enter": "newlineAndIndentContinueMarkdownList"}
+        mode: 'gfm',
+        lineNumbers: true,
+        lineWrapping: true,
+        indentUnit: 4,
+        theme: 'base16-light',
+        extraKeys: {"Enter": "newlineAndIndentContinueMarkdownList"}
 });
 
 editor.on('change', update);
 update(editor);
 editor.focus();
+setUnload(false);
