@@ -36,7 +36,7 @@ function initDropbox() {
     $dropbox.on("drop", function(e) {
         e.preventDefault();
         var files = e.originalEvent.dataTransfer.files;
-        
+
         if (confirm('Are you sure to upload?')) {
             addFiles(files);
             doUpload();
@@ -85,8 +85,10 @@ function doUpload() {
         cache: false,
         data: fd,
         success: function(data) {
+            //Remove the annoying new lines
+            data = data.replace(/\n/g, '');
             PENDING_FILES.splice(0, PENDING_FILES.length);
-            editor.replaceRange(data, CodeMirror.Pos(editor.lastLine()))
+            editor.replaceRange(data, editor.getCursor())
         },
     });
 }
