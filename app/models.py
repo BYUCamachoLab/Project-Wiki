@@ -247,8 +247,12 @@ class WikiPage(db.Document):
         self.toc = toc
         diff = unified_diff.make_patch(self.md, md)
         if diff:
-            pv = WikiPageVersion(diff, self.current_version, self.modified_on,
-                                 self.modified_by).switch_db(group).save()
+            pv = WikiPageVersion(
+                diff=diff,
+                version=self.current_version,
+                modified_on=self.modified_on,
+                modified_by=self.modified_by,
+            ).switch_db(group).save()
             self.versions.append(pv)
             self.md = md
             self.modified_on = datetime.now()

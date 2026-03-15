@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import flash, url_for, redirect, request, abort
 from flask_login import current_user
-from mongoengine.connection import MongoEngineConnectionError
+from mongoengine.connection import ConnectionFailure
 from .models import Permission
 
 
@@ -16,7 +16,7 @@ def permission_required(permission):
                                             group=group, 
                                             next=request.url))
                 return f(group, *args, **kwargs)
-            except MongoEngineConnectionError:
+            except ConnectionFailure:
                 abort(404)
 
         return decorated_function

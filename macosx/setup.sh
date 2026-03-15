@@ -30,7 +30,7 @@ mongod --dbpath ../Project_Wiki_Data/db \
 sleep 3
 
 # create admin account for database
-mongo admin --eval "db.createUser({user: '$username', pwd: '$password', roles:[{role:'root',db:'admin'}]});"
+mongosh admin --eval "db.createUser({user: '$username', pwd: '$password', roles:[{role:'root',db:'admin'}]});"
 
 # install python libraries
 pip install -r macosx/requirements.txt
