@@ -64,7 +64,7 @@ docker compose logs mongo
 ### Migration steps
 
 1. **Stop all existing services** (this also stops the host Caddy process —
-   the wiki will be offline until Step 5):
+   the wiki will be offline until Caddy is restarted at the end of Step 5):
 
    ```bash
    cd macosx && bash stop.sh
@@ -123,11 +123,15 @@ Both MongoDB data and file uploads are stored on the host filesystem under
 `Project_Wiki_Data/`. Back up this directory with your normal backup tooling
 (rsync, tar, etc.).
 
-For crash-safe logical backups, run `mongodump` against the running container:
+For crash-safe logical backups, run `mongodump` against the running container.
+Replace `YOUR_USER` and `YOUR_PASS` with your MongoDB credentials (or run `source .env` first
+to load them from your `.env` file):
 
 ```bash
+# source .env  # uncomment to load DB_USER and DB_PASS from your .env file
 docker compose exec mongo mongodump \
-  -u "$DB_USER" -p "$DB_PASS" --authenticationDatabase admin \
+  -u "${DB_USER:-YOUR_USER}" -p "${DB_PASS:-YOUR_PASS}" \
+  --authenticationDatabase admin \
   --archive | gzip > ~/pw-backup-$(date +%Y%m%d).gz
 ```
 
