@@ -22,9 +22,10 @@ That directory must contain `db/`, `uploads/`, and `log/` subdirectories
 
 ### 2. Check your MongoDB version
 
-Run `mongod --version` on the host. If your existing version is not 3.6, update the
-`image:` line in `docker-compose.yml` to match (e.g., `mongo:4.4`). Also update the
-healthcheck command if using 4.x or later (replace `mongo` with `mongosh`).
+Run `mongod --version` on the host. If your existing version is not 7.0, update the
+`image:` line in `docker-compose.yml` to match (e.g., `mongo:6.0`). The healthcheck
+uses `mongosh` (available in MongoDB 5.0+); if you need an older image, replace
+`mongosh` with `mongo` in the healthcheck.
 
 ### 3. Start the containers
 
@@ -59,7 +60,8 @@ docker compose logs mongo
    - Flask `SECRET_KEY` (from your environment or the `config.py` defaults you used)
    - Admin account details
 
-2. Verify your MongoDB version: `mongod --version`
+2. Verify your MongoDB version: `mongod --version`. Update the `image:` tag in
+   `docker-compose.yml` if it doesn't match `7.0`.
 
 ### Migration steps
 

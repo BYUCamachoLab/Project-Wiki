@@ -1,12 +1,12 @@
 services:
   mongo:
-    image: mongo:3.6
+    image: mongo:7.0
     command: ["mongod", "--auth"]
     volumes:
       - ${DATA_DIR}/db:/data/db
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mongo", "--quiet", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
