@@ -1,6 +1,6 @@
 services:
   mongo:
-    image: mongo:7.0
+    image: mongo:8.0
     command: ["mongod", "--auth"]
     volumes:
       - ${DATA_DIR}/db:/data/db
