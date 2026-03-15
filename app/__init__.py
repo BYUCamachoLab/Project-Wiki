@@ -36,7 +36,10 @@ def create_app():
     for group in all_groups:
         db.register_connection(alias=group, name=group,
                                host=config.MONGODB_SETTINGS['host'],
-                               port=config.MONGODB_SETTINGS['port'])
+                               port=config.MONGODB_SETTINGS['port'],
+                               username=config.MONGODB_SETTINGS['username'],
+                               password=config.MONGODB_SETTINGS['password'],
+                               authentication_source=config.MONGODB_SETTINGS['db'])
     app.logger.addHandler(logger)
 
     login_manager.init_app(app)

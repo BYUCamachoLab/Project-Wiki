@@ -35,7 +35,7 @@ def wiki_super_admin():
 
         # Initialize a new database for the just-created group
         # Make sure the new group name is not occupied.
-        if new_group.name_no_whitespace in db.connection.database_names():
+        if new_group.name_no_whitespace in db.connection.list_database_names():
             flash('Group already exists.')
         else:
             try:

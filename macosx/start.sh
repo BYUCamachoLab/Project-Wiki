@@ -21,7 +21,7 @@ fi
 nohup python PW_run.py &>/dev/null &
 
 # start caddy
-nohup caddy -conf PW_Caddyfile &>/dev/null &
+nohup caddy run --config PW_Caddyfile --adapter caddyfile &>/dev/null &
 
 
 if pgrep -x "caddy" > /dev/null
