@@ -371,6 +371,20 @@ class WikiCache(db.Document):
         self.save()
 
 
+class WikiPageTree(db.Document):
+    """Stores the hierarchical page tree for a group.
+
+    One document per group, stored in the group's own database via switch_db.
+
+    :param tree: nested list of {id: str, children: [...]} dicts
+    :param orphans: flat list of page id strings not yet placed in the tree
+    """
+    tree = db.ListField()
+    orphans = db.ListField()
+
+    meta = {'collection': 'wiki_page_tree'}
+
+
 class WikiGroup(db.Document):
     """Collection of Project Wiki groups.
     

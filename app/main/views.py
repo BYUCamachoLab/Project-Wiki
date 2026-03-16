@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime, date
+from datetime import datetime
 from werkzeug.utils import secure_filename
 from flask import request, redirect, render_template, \
     url_for, flash, send_from_directory
@@ -13,27 +13,72 @@ from . import main
 from .. import config, basedir, wiki_md
 from .forms import BasicEditForm, WikiEditForm, SearchForm, CommentForm,\
     RenameForm, UploadForm, VersionRecoverForm
-from ..models import Permission, WikiGroup, WikiComment, WikiPage, WikiFile, WikiCache,\
-    render_wiki_file, render_wiki_image
+from ..models import Permission, WikiGroup, WikiComment, WikiPage, WikiFile, WikiCache, \
+    WikiPageTree, render_wiki_file, render_wiki_image
 from ..email import send_email
 from ..wiki_util.pagination import calc_page_num
 
 from ..decorators import admin_required, user_required, guest_required
 
 
-def wiki_render_template(template, group, *args, **kwargs):
-    with switch_db(WikiCache, group) as _WikiCache:
-        _cache = _WikiCache.objects.first()
-        
-        if _cache.latest_change_time.date() == date.today():
-            latest_change_time = _cache.latest_change_time.strftime('[%H:%M]')
+def _collect_tree_ids(nodes):
+    """Recursively collect all page id strings from a nested tree list."""
+    for node in nodes:
+        yield node['id']
+        yield from _collect_tree_ids(node.get('children', []))
+
+
+def _add_pages_to_tree(group, parent_id, new_ids):
+    """Insert new_ids as children of parent_id in the group's WikiPageTree.
+
+    Pages already present anywhere in the tree are skipped (first-placement wins).
+    Silently no-ops if no WikiPageTree exists yet.
+    """
+    with switch_db(WikiPageTree, group) as _WikiPageTree:
+        tree_doc = _WikiPageTree.objects.first()
+        if tree_doc is None:
+            return
+
+        existing_ids = set(_collect_tree_ids(tree_doc.tree)) | set(tree_doc.orphans)
+        to_add = [pid for pid in new_ids if pid not in existing_ids]
+        if not to_add:
+            return
+
+        def insert_into(nodes, target_parent_id, child_ids):
+            for node in nodes:
+                if node['id'] == target_parent_id:
+                    for cid in child_ids:
+                        node.setdefault('children', []).append(
+                            {'id': cid, 'children': []})
+                    return True
+                if insert_into(node.get('children', []), target_parent_id, child_ids):
+                    return True
+            return False
+
+        inserted = insert_into(tree_doc.tree, parent_id, to_add)
+        if not inserted:
+            # parent not found in tree — put new pages in orphans
+            tree_doc.orphans.extend(to_add)
+
+        tree_doc.save()
+
+
+def wiki_render_template(template, group, *args, current_page_id=None, **kwargs):
+    with switch_db(WikiPageTree, group) as _WikiPageTree, \
+            switch_db(WikiPage, group) as _WikiPage:
+        page_tree = _WikiPageTree.objects.first()
+
+        if page_tree is not None:
+            all_ids = list(_collect_tree_ids(page_tree.tree)) + list(page_tree.orphans)
+            pages = _WikiPage.objects(id__in=all_ids).only('id', 'title')
+            page_id_title_map = {str(p.id): p.title for p in pages}
         else:
-            latest_change_time = _cache.latest_change_time.strftime('[%b %d]')
-        
+            page_id_title_map = {}
+
         return render_template(template, group=group,
-                               keypages_id_title=_cache.keypages_id_title,
-                               changes_id_title=_cache.changes_id_title[:-6:-1],
-                               latest_change_time = latest_change_time,
+                               page_tree=page_tree,
+                               page_id_title_map=page_id_title_map,
+                               current_page_id=current_page_id,
                                *args, **kwargs)
 
 
@@ -142,7 +187,8 @@ def wiki_page(group, page_id):
 
     with switch_db(WikiPage, group) as _WikiPage:
         page = _WikiPage.objects.exclude('md', 'refs', 'files').get_or_404(id=page_id)
-    return wiki_render_template('wiki_page.html', group=group, page=page, form=form)
+    return wiki_render_template('wiki_page.html', group=group, page=page, form=form,
+                                current_page_id=str(page.id))
 
 
 href_prog = re.compile(r'\/(.+?)\/([0-9a-f]{24})\/page(#.*)?')
@@ -158,9 +204,12 @@ def wiki_page_edit(group, page_id):
 
         if form.validate_on_submit():
             if form.current_version.data == page.current_version:
+                # Capture old refs before processing (None-guard for deleted pages)
+                old_ref_ids = {str(r.id) for r in (page.refs or []) if r is not None}
+
                 toc, html = wiki_md(group, form.textArea.data)
                 page.update_content(group, form.textArea.data, html, toc)
-                
+
                 # Make sure wiki page references using raw html are also kept track of.
                 soup = BeautifulSoup(form.textArea.data, 'html.parser')
                 hrefs = [a['href'] for a in soup.find_all('a', class_='wiki-page')]
@@ -174,9 +223,16 @@ def wiki_page_edit(group, page_id):
                             wiki_md.wiki_refs.append(href_page)
                     except (AttributeError, AssertionError):
                         pass
-                
+
                 _WikiPage.objects(id=page.id).update(set__refs=wiki_md.wiki_refs,
                                                      set__files=wiki_md.wiki_files)
+
+                # Add newly linked pages as children of this page in the tree
+                new_ref_ids = {str(r.id) for r in wiki_md.wiki_refs}
+                added_ids = new_ref_ids - old_ref_ids
+                if added_ids:
+                    _add_pages_to_tree(group, str(page.id), added_ids)
+
                 return redirect(url_for('.wiki_page', group=group, page_id=page_id))
             else:
                 flash('Other changes have been made to this '
@@ -330,13 +386,21 @@ def wiki_rename_page(group, page_id):
 
         form = RenameForm(new_title=page.title)
         if form.validate_on_submit():
+            from flask import jsonify as _jsonify
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             new_title = form.new_title.data
             if page.title == new_title:
+                if is_ajax:
+                    return _jsonify({'ok': False, 'error': 'The page name is not changed.'})
                 flash('The page name is not changed.')
             elif _WikiPage.objects(title=new_title).count() > 0:
+                if is_ajax:
+                    return _jsonify({'ok': False, 'error': 'That title is already taken.'})
                 flash('The new page title has already been taken.')
             else:
                 page.rename(group, new_title)
+                if is_ajax:
+                    return _jsonify({'ok': True, 'new_title': new_title})
                 return redirect(url_for('.wiki_page', group=group, page_id=page_id))
 
     return wiki_render_template('wiki_rename_page.html', group=group, page=page, form=form)
@@ -383,6 +447,55 @@ def wiki_group_home(group):
         return redirect(url_for('.wiki_page', 
                                 group=group, 
                                 page_id=str(wiki_group_homepage.id)))
+
+
+@main.route('/<group>/structure')
+@admin_required
+def wiki_structure(group):
+    from flask import jsonify
+    with switch_db(WikiPageTree, group) as _WikiPageTree, \
+            switch_db(WikiPage, group) as _WikiPage:
+        page_tree = _WikiPageTree.objects.first()
+        if page_tree is not None:
+            all_ids = list(_collect_tree_ids(page_tree.tree)) + list(page_tree.orphans)
+            pages = _WikiPage.objects(id__in=all_ids).only('id', 'title')
+            page_id_title_map = {str(p.id): p.title for p in pages}
+        else:
+            page_id_title_map = {}
+    return wiki_render_template('structure.html', group=group,
+                                page_tree=page_tree,
+                                page_id_title_map=page_id_title_map)
+
+
+@main.route('/<group>/structure/save', methods=['POST'])
+@admin_required
+def wiki_structure_save(group):
+    from flask import jsonify
+    data = request.get_json(silent=True)
+    if not data or 'tree' not in data:
+        return jsonify({'error': 'Invalid data'}), 400
+
+    new_tree    = data.get('tree', [])
+    new_orphans = data.get('orphans', [])
+
+    # Validate all referenced IDs exist in this group
+    all_ids = list(_collect_tree_ids(new_tree)) + new_orphans
+    with switch_db(WikiPage, group) as _WikiPage:
+        existing_ids = {str(p.id) for p in _WikiPage.objects(id__in=all_ids).only('id')}
+    invalid = [i for i in all_ids if i not in existing_ids]
+    if invalid:
+        return jsonify({'error': 'Unknown page IDs: ' + ', '.join(invalid[:5])}), 400
+
+    with switch_db(WikiPageTree, group) as _WikiPageTree:
+        tree_doc = _WikiPageTree.objects.first()
+        if tree_doc:
+            tree_doc.tree    = new_tree
+            tree_doc.orphans = new_orphans
+            tree_doc.save()
+        else:
+            _WikiPageTree(tree=new_tree, orphans=new_orphans).save()
+
+    return jsonify({'ok': True})
 
 
 @main.route('/<group>/markdown')

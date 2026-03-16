@@ -15,25 +15,6 @@
 {% endif %}
 {% endblock %}
 
-{% block tableofcontents %}
-<div id="toc-div">
-    <strong>Table of contents</strong>
-    {{ page.toc|safe }}
-</div>
-<script>
-    var d = document.getElementById('toc-div');
-    var uls = d.getElementsByTagName('ul');
-    if (uls.length > 0) {
-        uls[0].className = "nav nav-pills flex-column";
-        
-        var lis = d.getElementsByTagName('li');
-        var links = d.getElementsByTagName('a');
-        for (i = 0; i < lis.length; i++) {
-            lis[i].className = 'nav-item';
-        }
-    }
-</script>
-{% endblock %}
 
 {% block content %}
     {{ page.html|safe }}

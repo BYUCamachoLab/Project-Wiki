@@ -11,7 +11,7 @@ from mongoengine.connection import disconnect
 from . import admin
 from ..main.views import wiki_render_template
 from .. import config, basedir, db, wiki_pwd, wiki_md
-from ..models import WikiGroup, WikiPage, WikiPageVersion, WikiUser, WikiCache, WikiFile, WikiLoginRecord
+from ..models import WikiGroup, WikiPage, WikiPageVersion, WikiUser, WikiCache, WikiFile, WikiLoginRecord, WikiPageTree
 from ..decorators import super_required, admin_required, user_required, guest_required
 from .forms import AddGroupForm, NewUserForm, ExistingUserForm, FileDeletionForm, PageDeletionForm, SearchForm
 from ..wiki_util.pagination import calc_page_num
@@ -288,6 +288,23 @@ def wiki_group_delete_wikipage(group):
                                                        set__html=wp_html,
                                                        set__toc=wp_toc)
             page_to_delete.delete()
+
+    # Remove deleted page from the page tree
+    deleted_id = str(form.page_id.data)
+    with switch_db(WikiPageTree, group) as _WikiPageTree:
+        tree_doc = _WikiPageTree.objects.first()
+        if tree_doc:
+            def remove_from_nodes(nodes, target_id):
+                kept = []
+                for node in nodes:
+                    if node['id'] == target_id:
+                        continue
+                    node['children'] = remove_from_nodes(node.get('children', []), target_id)
+                    kept.append(node)
+                return kept
+            tree_doc.tree = remove_from_nodes(tree_doc.tree, deleted_id)
+            tree_doc.orphans = [pid for pid in tree_doc.orphans if pid != deleted_id]
+            tree_doc.save()
     return ''
 
 
