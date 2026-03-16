@@ -408,12 +408,16 @@
                If .collapsed is now ABSENT, the sidebar was just expanded. */
             function onToggleClick(sidebar, toggleBtn, storageKey) {
                 if (!sidebar || !toggleBtn) return;
+                var pendingExpand = false;
                 toggleBtn.addEventListener('click', function () {
                     if (sidebar.classList.contains('collapsed')) return; /* just collapsed — nothing to restore */
                     var saved = localStorage.getItem(storageKey);
-                    if (!saved) return;
-                    sidebar.addEventListener('transitionend', function handler() {
+                    if (!saved || pendingExpand) return;
+                    pendingExpand = true;
+                    sidebar.addEventListener('transitionend', function handler(e) {
+                        if (e.propertyName !== 'width') return;
                         sidebar.removeEventListener('transitionend', handler);
+                        pendingExpand = false;
                         sidebar.style.width    = saved + 'px';
                         sidebar.style.minWidth = saved + 'px';
                     });
