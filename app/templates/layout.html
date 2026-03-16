@@ -195,6 +195,21 @@
                 color: #495057;
             }
             #pw-toc .nav-link:hover { color: #0d6efd; }
+
+            /* ── Resize handles ── */
+            .pw-resize-handle {
+                position: absolute;
+                top: 0;
+                width: 6px;
+                height: 100%;
+                cursor: col-resize;
+                z-index: 10;
+            }
+            .pw-resize-left  { right: 0; }
+            .pw-resize-right { left: 0; }
+            .pw-resize-handle:hover { background: rgba(0,0,0,0.08); }
+            .pw-sidebar-left.collapsed  .pw-resize-handle,
+            .pw-sidebar-right.collapsed .pw-resize-handle { pointer-events: none; }
         </style>
     </head>
 
@@ -289,6 +304,7 @@
                     {% endif %}
                     {% endif %}
                 </div>
+                <div class="pw-resize-handle pw-resize-left"></div>
             </div>
 
             {# ── Main content ── #}
@@ -306,6 +322,7 @@
                     <div class="pw-toc-label">On this page</div>
                     <div id="pw-toc">{{ toc_html | safe }}</div>
                 </div>
+                <div class="pw-resize-handle pw-resize-right"></div>
             </div>
 
         </div>
@@ -317,6 +334,97 @@
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
         <script src="{{ url_for('static', filename='bootstrap4/ie10-viewport-bug-workaround.js') }}"></script>
         <script src="{{ url_for('static', filename='js/page-tree.js') }}"></script>
+        <script>
+        (function () {
+            'use strict';
+
+            var MIN_WIDTH = 120;
+            var MAX_WIDTH = 450;
+
+            var leftSidebar  = document.getElementById('pw-sidebar-left');
+            var rightSidebar = document.getElementById('pw-sidebar-right');
+            var leftHandle   = leftSidebar  ? leftSidebar.querySelector('.pw-resize-left')   : null;
+            var rightHandle  = rightSidebar ? rightSidebar.querySelector('.pw-resize-right')  : null;
+            var leftToggle   = document.getElementById('pw-left-toggle');
+            var rightToggle  = document.getElementById('pw-right-toggle');
+
+            /* ── Restore saved widths on page load ── */
+            /* This script runs after page-tree.js, so .collapsed is already applied
+               by the time restoreWidth runs — the check is correct. */
+            function restoreWidth(sidebar, key) {
+                if (!sidebar || sidebar.classList.contains('collapsed')) return;
+                var saved = localStorage.getItem(key);
+                if (saved) {
+                    sidebar.style.width    = saved + 'px';
+                    sidebar.style.minWidth = saved + 'px';
+                }
+            }
+            restoreWidth(leftSidebar,  'pw-sidebar-left-width');
+            restoreWidth(rightSidebar, 'pw-sidebar-right-width');
+
+            /* ── Drag-to-resize ── */
+            function initResize(sidebar, handle, storageKey, direction) {
+                if (!handle) return;
+                handle.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    var startX     = e.clientX;
+                    var startWidth = sidebar.offsetWidth;
+
+                    sidebar.style.transition       = 'none';
+                    document.body.style.userSelect = 'none';
+
+                    function onMove(e) {
+                        var delta    = e.clientX - startX;
+                        var newWidth = direction === 'left'
+                            ? startWidth + delta
+                            : startWidth - delta;
+                        newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
+                        sidebar.style.width    = newWidth + 'px';
+                        sidebar.style.minWidth = newWidth + 'px';
+                    }
+
+                    function onUp() {
+                        var finalWidth = parseInt(sidebar.style.width, 10);
+                        if (finalWidth) {
+                            localStorage.setItem(storageKey, finalWidth);
+                        }
+                        sidebar.style.transition       = '';
+                        document.body.style.userSelect = '';
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup',   onUp);
+                    }
+
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup',   onUp);
+                });
+            }
+
+            initResize(leftSidebar,  leftHandle,  'pw-sidebar-left-width',  'left');
+            initResize(rightSidebar, rightHandle, 'pw-sidebar-right-width', 'right');
+
+            /* ── Restore saved width on expand ── */
+            /* This script is placed AFTER page-tree.js, so page-tree.js's click handler
+               fires first and has already toggled .collapsed by the time our handler runs.
+               If .collapsed is now ABSENT, the sidebar was just expanded. */
+            function onToggleClick(sidebar, toggleBtn, storageKey) {
+                if (!sidebar || !toggleBtn) return;
+                toggleBtn.addEventListener('click', function () {
+                    if (sidebar.classList.contains('collapsed')) return; /* just collapsed — nothing to restore */
+                    var saved = localStorage.getItem(storageKey);
+                    if (!saved) return;
+                    sidebar.addEventListener('transitionend', function handler() {
+                        sidebar.removeEventListener('transitionend', handler);
+                        sidebar.style.width    = saved + 'px';
+                        sidebar.style.minWidth = saved + 'px';
+                    });
+                });
+            }
+
+            onToggleClick(leftSidebar,  leftToggle,  'pw-sidebar-left-width');
+            onToggleClick(rightSidebar, rightToggle, 'pw-sidebar-right-width');
+
+        }());
+        </script>
         {% block scriptblock %}{% endblock %}
     </body>
 </html>
