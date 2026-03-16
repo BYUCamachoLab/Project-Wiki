@@ -452,19 +452,7 @@ def wiki_group_home(group):
 @main.route('/<group>/structure')
 @admin_required
 def wiki_structure(group):
-    from flask import jsonify
-    with switch_db(WikiPageTree, group) as _WikiPageTree, \
-            switch_db(WikiPage, group) as _WikiPage:
-        page_tree = _WikiPageTree.objects.first()
-        if page_tree is not None:
-            all_ids = list(_collect_tree_ids(page_tree.tree)) + list(page_tree.orphans)
-            pages = _WikiPage.objects(id__in=all_ids).only('id', 'title')
-            page_id_title_map = {str(p.id): p.title for p in pages}
-        else:
-            page_id_title_map = {}
-    return wiki_render_template('structure.html', group=group,
-                                page_tree=page_tree,
-                                page_id_title_map=page_id_title_map)
+    return wiki_render_template('structure.html', group=group)
 
 
 @main.route('/<group>/structure/save', methods=['POST'])

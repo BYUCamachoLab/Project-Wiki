@@ -42,7 +42,8 @@ def migrate_page_tree(force):
             # BFS from Home's refs
             tree = []
             orphan_ids = set()
-            visited = set()
+            # Pre-seed visited with Home so it never appears as a tree node
+            visited = {str(home.id)}
 
             def collect_ids(nodes):
                 """Walk a nested tree list and collect all ids."""
