@@ -78,7 +78,7 @@ Added inline before `{% block scriptblock %}`, after existing Bootstrap/jQuery s
 ### Behavior Notes
 
 - Resizing is independent per sidebar (left and right each have their own `localStorage` key).
-- Collapsing a sidebar after resizing preserves the saved width. On expand, the saved width is re-applied via a click listener on the collapse toggle button: since the inline resize script loads before `page-tree.js`, its click handler fires first. At that point `sidebar.classList.contains('collapsed')` is still `true` (page-tree.js hasn't toggled it yet), so the handler knows an expand is about to happen. It listens for `transitionend` on the sidebar (fired once the 200ms CSS transition completes) and then applies the saved width.
+- Collapsing a sidebar after resizing preserves the saved width. On expand, the saved width is re-applied via a click listener on the toggle button. The inline resize script is placed after `page-tree.js`, so page-tree.js's click handler fires first and has already toggled `.collapsed` by the time the resize handler runs. The resize handler checks `!sidebar.classList.contains('collapsed')` — if `.collapsed` is absent, the sidebar was just expanded. It then listens for `transitionend` on the sidebar and applies the saved width once the transition completes.
 - The right sidebar already hides entirely (`.empty` class) when there's no TOC — the handle is also hidden in that case since the sidebar is `display: none`.
 - No interaction with the existing collapse toggle logic is needed; the handle's `pointer-events: none` when collapsed is sufficient.
 
