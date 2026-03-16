@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from flask import request, redirect, render_template, \
     url_for, flash, send_from_directory
 from flask_login import current_user
+from flask_wtf.csrf import generate_csrf
 from mongoengine import DoesNotExist
 from mongoengine.context_managers import switch_db
 from bs4 import BeautifulSoup
@@ -452,7 +453,8 @@ def wiki_group_home(group):
 @main.route('/<group>/structure')
 @admin_required
 def wiki_structure(group):
-    return wiki_render_template('structure.html', group=group)
+    return wiki_render_template('structure.html', group=group,
+                                csrf_token=generate_csrf())
 
 
 @main.route('/<group>/structure/save', methods=['POST'])
