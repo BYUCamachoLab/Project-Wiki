@@ -36,25 +36,28 @@ $(document).ready(function() {
         }
     });
 
-    // Full-page drag-and-drop handlers
-    $(document).on('dragenter', function(e) {
+    // Full-page drag-and-drop handlers — registered in capture phase (true) so they
+    // fire before CodeMirror's bubbling handlers, which otherwise call stopPropagation()
+    // on dragenter/dragover and read dropped files as text (inserting garbage into editor).
+    // In capture phase, e is the native event object — use e.dataTransfer directly.
+    document.addEventListener('dragenter', function(e) {
         e.preventDefault();
         e.stopPropagation();
         dragCounter++;
         if (dragCounter === 1) {
             $('#drag-overlay').addClass('active');
         }
-    });
+    }, true);
 
-    $(document).on('dragover', function(e) {
+    document.addEventListener('dragover', function(e) {
         e.preventDefault();
         e.stopPropagation();
-    });
+    }, true);
 
-    $(document).on('dragleave', function(e) {
+    document.addEventListener('dragleave', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        var rt = e.originalEvent.relatedTarget;
+        var rt = e.relatedTarget;
         if (rt === null || !document.documentElement.contains(rt)) {
             // Cursor left the browser window — force reset
             dragCounter = 0;
@@ -65,19 +68,19 @@ $(document).ready(function() {
         if (dragCounter === 0) {
             $('#drag-overlay').removeClass('active');
         }
-    });
+    }, true);
 
-    $(document).on('drop', function(e) {
+    document.addEventListener('drop', function(e) {
         e.preventDefault();
         e.stopPropagation();
         dragCounter = 0;
         $('#drag-overlay').removeClass('active');
-        var files = e.originalEvent.dataTransfer.files;
+        var files = e.dataTransfer.files;
         if (files.length > 0) {
             addFiles(files);
             doUpload();
         }
-    });
+    }, true);
 });
 
 function getTimestamp() {
