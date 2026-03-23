@@ -1,4 +1,4 @@
-/* page-tree.js — page tree expand/collapse, sidebar collapse toggles */
+/* page-tree.js — page tree expand/collapse */
 (function () {
     'use strict';
 
@@ -17,53 +17,6 @@
                 links[j].className = 'nav-link';
             }
         }
-    }
-
-    /* ── Sidebar collapse toggles ── */
-    var leftSidebar  = document.getElementById('pw-sidebar-left');
-    var rightSidebar = document.getElementById('pw-sidebar-right');
-    var leftToggle   = document.getElementById('pw-left-toggle');
-    var rightToggle  = document.getElementById('pw-right-toggle');
-
-    function applyLeftState(collapsed) {
-        if (collapsed) {
-            leftSidebar.classList.add('collapsed');
-            leftToggle.innerHTML = '&#xBB;';
-        } else {
-            leftSidebar.classList.remove('collapsed');
-            leftToggle.innerHTML = '&#xAB;';
-        }
-    }
-
-    function applyRightState(collapsed) {
-        if (!rightSidebar || rightSidebar.classList.contains('empty')) return;
-        if (collapsed) {
-            rightSidebar.classList.add('collapsed');
-            rightToggle.innerHTML = '&#xAB;';
-        } else {
-            rightSidebar.classList.remove('collapsed');
-            rightToggle.innerHTML = '&#xBB;';
-        }
-    }
-
-    if (leftSidebar && leftToggle) {
-        var leftCollapsed = localStorage.getItem('pw_leftsidebar_collapsed') === '1';
-        applyLeftState(leftCollapsed);
-        leftToggle.addEventListener('click', function () {
-            var isCollapsed = leftSidebar.classList.contains('collapsed');
-            applyLeftState(!isCollapsed);
-            localStorage.setItem('pw_leftsidebar_collapsed', isCollapsed ? '0' : '1');
-        });
-    }
-
-    if (rightSidebar && rightToggle) {
-        var rightCollapsed = localStorage.getItem('pw_rightsidebar_collapsed') === '1';
-        applyRightState(rightCollapsed);
-        rightToggle.addEventListener('click', function () {
-            var isCollapsed = rightSidebar.classList.contains('collapsed');
-            applyRightState(!isCollapsed);
-            localStorage.setItem('pw_rightsidebar_collapsed', isCollapsed ? '0' : '1');
-        });
     }
 
     /* ── Page tree expand/collapse ── */

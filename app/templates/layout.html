@@ -54,22 +54,16 @@
                 border-right: 1px solid #dee2e6;
                 display: flex;
                 flex-direction: column;
-                transition: width 0.2s ease, min-width 0.2s ease;
                 overflow: hidden;
                 position: sticky;
                 top: 56px;
                 height: calc(100vh - 56px);
-            }
-            .pw-sidebar-left.collapsed {
-                width: 32px;
-                min-width: 32px;
             }
             .pw-sidebar-left-inner {
                 padding: 10px 8px;
                 overflow-y: auto;
                 flex: 1;
             }
-            .pw-sidebar-left.collapsed .pw-sidebar-left-inner { display: none; }
 
             /* Right sidebar */
             .pw-sidebar-right {
@@ -80,22 +74,16 @@
                 border-left: 1px solid #dee2e6;
                 display: flex;
                 flex-direction: column;
-                transition: width 0.2s ease, min-width 0.2s ease;
                 overflow: hidden;
                 position: sticky;
                 top: 56px;
                 height: calc(100vh - 56px);
-            }
-            .pw-sidebar-right.collapsed {
-                width: 32px;
-                min-width: 32px;
             }
             .pw-sidebar-right-inner {
                 padding: 10px 8px;
                 overflow-y: auto;
                 flex: 1;
             }
-            .pw-sidebar-right.collapsed .pw-sidebar-right-inner { display: none; }
             .pw-sidebar-right.empty { display: none; }
 
             /* Main content */
@@ -104,24 +92,6 @@
                 min-width: 0;
                 padding: 16px 20px;
             }
-
-            /* Collapse toggle buttons */
-            .pw-collapse-btn {
-                display: block;
-                width: 100%;
-                padding: 6px 4px;
-                background: none;
-                border: none;
-                border-bottom: 1px solid #dee2e6;
-                cursor: pointer;
-                font-size: 13px;
-                color: #6c757d;
-                flex-shrink: 0;
-            }
-            .pw-sidebar-left .pw-collapse-btn { text-align: right; }
-            .pw-sidebar-right .pw-collapse-btn { text-align: left; }
-            .pw-sidebar-left.collapsed .pw-collapse-btn,
-            .pw-sidebar-right.collapsed .pw-collapse-btn { text-align: center; }
 
             /* Page tree */
             .pw-tree ul {
@@ -208,8 +178,6 @@
             .pw-resize-left  { right: 0; }
             .pw-resize-right { left: 0; }
             .pw-resize-handle:hover { background: rgba(0,0,0,0.08); }
-            .pw-sidebar-left.collapsed  .pw-resize-handle,
-            .pw-sidebar-right.collapsed .pw-resize-handle { pointer-events: none; }
         </style>
     </head>
 
@@ -218,6 +186,12 @@
             <button class="navbar-toggler d-lg-none" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
               <span class="navbar-toggler-icon"></span>
             </button>
+            <a class="navbar-brand" href="{{ url_for('main.wiki_group_home', group=group) }}" title="Home">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" style="vertical-align:-3px">
+                    <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 6.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.707 1.5ZM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5 5 5Z"/>
+                </svg>
+            </a>
+            <span style="color:rgba(255,255,255,0.35); margin-right:8px; font-weight:300;">|</span>
             {% block pageheader %}{% endblock %}
 
             <div class="collapse navbar-collapse" id="navbarsExampleDefault">
@@ -263,7 +237,6 @@
 
             {# ── Left sidebar: Page Tree ── #}
             <div class="pw-sidebar-left" id="pw-sidebar-left">
-                <button class="pw-collapse-btn" id="pw-left-toggle" title="Toggle sidebar">&#xAB;</button>
                 <div class="pw-sidebar-left-inner">
                     {% if page_tree is none %}
                     <p class="text-muted" style="font-size:12px">
@@ -317,7 +290,6 @@
             {# ── Right sidebar: Table of Contents ── #}
             {% set toc_html = page.toc if (page is defined and page is not none and page.toc) else '' %}
             <div class="pw-sidebar-right{% if not toc_html %} empty{% endif %}" id="pw-sidebar-right">
-                <button class="pw-collapse-btn" id="pw-right-toggle" title="Toggle sidebar">&#xBB;</button>
                 <div class="pw-sidebar-right-inner">
                     <div class="pw-toc-label">On this page</div>
                     <div id="pw-toc">{{ toc_html | safe }}</div>
@@ -345,14 +317,10 @@
             var rightSidebar = document.getElementById('pw-sidebar-right');
             var leftHandle   = leftSidebar  ? leftSidebar.querySelector('.pw-resize-left')   : null;
             var rightHandle  = rightSidebar ? rightSidebar.querySelector('.pw-resize-right')  : null;
-            var leftToggle   = document.getElementById('pw-left-toggle');
-            var rightToggle  = document.getElementById('pw-right-toggle');
 
-            /* ── Restore saved widths on page load ── */
-            /* This script runs after page-tree.js, so .collapsed is already applied
-               by the time restoreWidth runs — the check is correct. */
+            /* ── Restore saved widths on page load (no transition) ── */
             function restoreWidth(sidebar, key) {
-                if (!sidebar || sidebar.classList.contains('collapsed')) return;
+                if (!sidebar) return;
                 var saved = localStorage.getItem(key);
                 if (saved) {
                     sidebar.style.width    = saved + 'px';
@@ -401,31 +369,6 @@
 
             initResize(leftSidebar,  leftHandle,  'pw-sidebar-left-width',  'left');
             initResize(rightSidebar, rightHandle, 'pw-sidebar-right-width', 'right');
-
-            /* ── Restore saved width on expand ── */
-            /* This script is placed AFTER page-tree.js, so page-tree.js's click handler
-               fires first and has already toggled .collapsed by the time our handler runs.
-               If .collapsed is now ABSENT, the sidebar was just expanded. */
-            function onToggleClick(sidebar, toggleBtn, storageKey) {
-                if (!sidebar || !toggleBtn) return;
-                var pendingExpand = false;
-                toggleBtn.addEventListener('click', function () {
-                    if (sidebar.classList.contains('collapsed')) return; /* just collapsed — nothing to restore */
-                    var saved = localStorage.getItem(storageKey);
-                    if (!saved || pendingExpand) return;
-                    pendingExpand = true;
-                    sidebar.addEventListener('transitionend', function handler(e) {
-                        if (e.propertyName !== 'width') return;
-                        sidebar.removeEventListener('transitionend', handler);
-                        pendingExpand = false;
-                        sidebar.style.width    = saved + 'px';
-                        sidebar.style.minWidth = saved + 'px';
-                    });
-                });
-            }
-
-            onToggleClick(leftSidebar,  leftToggle,  'pw-sidebar-left-width');
-            onToggleClick(rightSidebar, rightToggle, 'pw-sidebar-right-width');
 
         }());
         </script>
