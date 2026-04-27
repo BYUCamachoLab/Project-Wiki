@@ -8,3 +8,4 @@ config.py.env
 .env
 Project_Wiki_Data/
 .superpowers/
+backups/
