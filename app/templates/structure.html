@@ -1,0 +1,118 @@
+{% extends 'layout.html' %}
+
+{% block pageheader %}
+<span class="navbar-brand">Structure</span>
+{% endblock %}
+
+{% block content %}
+{% macro render_structure_node(node, title_map) %}
+{% set pid = node['id'] %}
+{% set title = title_map.get(pid, '(unknown)') %}
+<li data-id="{{ pid }}">
+    <div class="struct-row">
+        <span class="struct-handle">&#9776;</span>
+        <span class="struct-title">{{ title }}</span>
+        <button class="struct-rename-btn" title="Rename">&#9998;</button>
+    </div>
+    <ul class="structure-list">
+    {% for child in node.get('children', []) %}
+        {{ render_structure_node(child, title_map) }}
+    {% endfor %}
+    </ul>
+</li>
+{% endmacro %}
+
+<h4>Page Structure</h4>
+<p class="text-muted" style="font-size:13px">
+    Drag pages to reorder or reparent them. Click &#9998; to rename inline.
+    Press <strong>Save</strong> when done.
+</p>
+
+<div id="structure-alert" class="alert" style="display:none"></div>
+
+<div style="display:flex; gap:16px; align-items:flex-start">
+    <div style="flex:1">
+        <strong style="font-size:13px">Page Tree</strong>
+        {% if page_tree %}
+        <ul id="structure-tree" class="structure-list">
+            {% for node in page_tree.tree %}
+                {{ render_structure_node(node, page_id_title_map) }}
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No tree yet. Run <code>python manage.py migrate_page_tree</code> first.</p>
+        {% endif %}
+    </div>
+    <div style="min-width:200px">
+        <strong style="font-size:13px">Orphans</strong>
+        <ul id="structure-orphans" class="structure-list">
+            {% if page_tree %}
+            {% for pid in page_tree.orphans %}
+            {% if pid in page_id_title_map %}
+            <li data-id="{{ pid }}">
+                <div class="struct-row">
+                    <span class="struct-handle">&#9776;</span>
+                    <span class="struct-title">{{ page_id_title_map[pid] }}</span>
+                    <button class="struct-rename-btn" title="Rename">&#9998;</button>
+                </div>
+                <ul class="structure-list"></ul>
+            </li>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+        </ul>
+    </div>
+</div>
+
+<div style="margin-top:16px">
+    <button id="structure-save-btn" class="btn btn-primary btn-sm">Save</button>
+</div>
+
+<style>
+    .structure-list {
+        list-style: none;
+        padding: 4px;
+        margin: 2px 0;
+        min-height: 24px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+    .structure-list .structure-list {
+        border: 1px dashed #dee2e6;
+        margin: 4px 0 4px 20px;
+    }
+    .struct-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 3px;
+        margin: 2px 0;
+        font-size: 13px;
+    }
+    .struct-handle { cursor: grab; color: #adb5bd; flex-shrink: 0; }
+    .struct-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .struct-rename-btn {
+        background: none; border: none; cursor: pointer;
+        color: #6c757d; font-size: 13px; padding: 0 2px; flex-shrink: 0;
+    }
+    .struct-rename-btn:hover { color: #0d6efd; }
+    .struct-rename-input {
+        flex: 1; font-size: 13px;
+        border: 1px solid #86b7fe; border-radius: 3px; padding: 1px 4px;
+    }
+    .sortable-ghost { opacity: 0.4; }
+</style>
+{% endblock %}
+
+{% block scriptblock %}
+<script src="{{ url_for('static', filename='js/sortable.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/structure.js') }}"
+        id="structure-script"
+        data-group="{{ group }}"
+        data-save-url="{{ url_for('main.wiki_structure_save', group=group) }}"
+        data-rename-base="/{{ group }}/"
+        data-csrf="{{ csrf_token }}"></script>
+{% endblock %}

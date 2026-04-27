@@ -1,58 +1,118 @@
 // List of pending files to handle when the Upload button is finally clicked.
-var PENDING_FILES  = [];
+var PENDING_FILES = [];
+var dragCounter = 0;
 
 $(document).ready(function() {
-    // Set up the drag/drop zone.
-    initDropbox();
+    // Create the drag-over overlay
+    $('body').append('<div id="drag-overlay">Drop files here</div>');
 
     // Set up the handler for the file input box.
     $("#file-picker").on("change", function() {
         addFiles(this.files);
         doUpload();
     });
-});
 
-function initDropbox() {
-    var $dropbox = $("#out");
-
-    // On drag enter...
-    $dropbox.on("dragenter", function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-    });
-
-    $dropbox.on("dragleave", function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-    });
-
-    // On drag over...
-    $dropbox.on("dragover", function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-    });
-
-    // On drop...
-    $dropbox.on("drop", function(e) {
-        e.preventDefault();
-        var files = e.originalEvent.dataTransfer.files;
-
-        if (confirm('Are you sure to upload?')) {
+    // Clipboard paste handler
+    $(document).on('paste', function(e) {
+        var items = e.originalEvent.clipboardData && e.originalEvent.clipboardData.items;
+        if (!items) { return; }
+        var files = [];
+        var timestamp = getTimestamp();
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (item.kind !== 'file') { continue; }
+            var blob = item.getAsFile();
+            if (!blob) { continue; }
+            var isImage = item.type.indexOf('image/') === 0;
+            var prefix = isImage ? 'pasted-image-' : 'pasted-file-';
+            var ext = mimeToExt(item.type);
+            var name = prefix + timestamp + (ext ? '.' + ext : '');
+            files.push(new File([blob], name, { type: item.type }));
+        }
+        if (files.length > 0) {
             addFiles(files);
             doUpload();
+            e.preventDefault();
         }
     });
 
-    // If the files are dropped outside of the drop zone, the browser will
-    // redirect to show the files in the window. To avoid that we can prevent
-    // the 'drop' event on the document.
-    function stopDefault(e) {
-        e.stopPropagation();
+    // Full-page drag-and-drop handlers — registered in capture phase (true) so they
+    // fire before CodeMirror's bubbling handlers, which otherwise call stopPropagation()
+    // on dragenter/dragover and read dropped files as text (inserting garbage into editor).
+    // In capture phase, e is the native event object — use e.dataTransfer directly.
+    document.addEventListener('dragenter', function(e) {
         e.preventDefault();
-    }
-    $(document).on("dragenter", stopDefault);
-    $(document).on("dragover", stopDefault);
-    $(document).on("drop", stopDefault);
+        e.stopPropagation();
+        dragCounter++;
+        if (dragCounter === 1) {
+            $('#drag-overlay').addClass('active');
+        }
+    }, true);
+
+    document.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+
+    document.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var rt = e.relatedTarget;
+        if (rt === null || !document.documentElement.contains(rt)) {
+            // Cursor left the browser window — force reset
+            dragCounter = 0;
+            $('#drag-overlay').removeClass('active');
+            return;
+        }
+        dragCounter = Math.max(0, dragCounter - 1);
+        if (dragCounter === 0) {
+            $('#drag-overlay').removeClass('active');
+        }
+    }, true);
+
+    document.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter = 0;
+        $('#drag-overlay').removeClass('active');
+        var files = e.dataTransfer.files;
+        if (files.length > 0) {
+            addFiles(files);
+            doUpload();
+        }
+    }, true);
+});
+
+function getTimestamp() {
+    var d = new Date();
+    var pad = function(n) { return String(n).padStart(2, '0'); };
+    return '' + d.getFullYear() +
+        pad(d.getMonth() + 1) +
+        pad(d.getDate()) + '-' +
+        pad(d.getHours()) +
+        pad(d.getMinutes()) +
+        pad(d.getSeconds());
+}
+
+function mimeToExt(mimeType) {
+    var map = {
+        'image/png':  'png',
+        'image/jpeg': 'jpg',
+        'image/gif':  'gif',
+        'image/webp': 'webp',
+        'image/svg+xml': 'svg',
+        'application/pdf': 'pdf',
+        'application/msword': 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+        'application/vnd.ms-excel': 'xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+        'application/vnd.ms-powerpoint': 'ppt',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+        'text/plain': 'txt',
+        'text/csv':   'csv',
+        'application/zip': 'zip',
+    };
+    return map[mimeType] || '';
 }
 
 function addFiles(files) {
@@ -63,13 +123,10 @@ function addFiles(files) {
 }
 
 function doUpload() {
-    // Collect the form data.
-    // fd = collectFormData();
     var fd = new FormData();
 
     // Attach the files.
     for (var i = 0; i < PENDING_FILES.length; i++) {
-        // Collect the other form data.
         fd.append("file", PENDING_FILES[i]);
     }
 
