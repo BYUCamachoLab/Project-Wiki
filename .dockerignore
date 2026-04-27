@@ -1,0 +1,28 @@
+# Data directories — never in the image
+Project_Wiki_Data/
+
+# Git and editor noise
+.git/
+.gitignore
+.gitattributes
+.claude/
+docs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Secrets
+.env
+
+# Platform-specific scripts (keep macosx/requirements.txt — Dockerfile needs it)
+macosx/*.sh
+windows/
+
+# Misc
+PW_Caddyfile
+README.md
+CLAUDE.md
+LICENSE

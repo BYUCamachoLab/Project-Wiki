@@ -11,19 +11,19 @@ class Config:
     MONGODB_SETTINGS = {
         'db': os.environ.get('DB_NAME', 'admin'),
         'host': os.environ.get('DB_SERVICE', '127.0.0.1'),
-        'port': os.environ.get('DB_PORT', 27017),
+        'port': int(os.environ.get('DB_PORT', 27017)),
         'username': os.environ.get('DB_USER', '<database username>'),
         'password': os.environ.get('DB_PASS', '<database password>')
     }
     
     # Email to send out notification to users
-    # Here Gmail is used as an example. 
-    # If you want to stay with Gmail, 
+    # Here Gmail is used as an example.
+    # If you want to stay with Gmail,
     # you need to `Allow less secure apps to access accounts`.
     # More info: https://support.google.com/a/answer/6260879?hl=en
     # and https://github.com/miguelgrinberg/flasky/issues/65
-    MAIL_SERVER = 'smtp.googlemail.com'
-    MAIL_PORT = 587
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.googlemail.com')
+    MAIL_PORT    = int(os.environ.get('MAIL_PORT', 587))
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME', '<email>')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '<email password>')

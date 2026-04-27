@@ -1,0 +1,46 @@
+services:
+  mongo:
+    image: mongo:8.0
+    command: ["mongod", "--auth"]
+    volumes:
+      - ${DATA_DIR}/db:/data/db
+    environment:
+      # Used only when db/ is empty (fresh install) to create the initial root user.
+      # Ignored on migration — credentials must already exist in the data files.
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASS}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-admin}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  app:
+    build: .
+    image: project-wiki:latest
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ${DATA_DIR}/uploads:/Project_Wiki_Data/uploads
+      - ${DATA_DIR}/log:/Project_Wiki_Data/log
+    environment:
+      DB_SERVICE: mongo
+      DB_PORT: ${DB_PORT:-27017}
+      DB_NAME: ${DB_NAME:-admin}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      MAIL_SERVER: ${MAIL_SERVER:-smtp.googlemail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
