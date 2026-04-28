@@ -7,11 +7,12 @@
 {% block content %}
 {% macro render_structure_node(node, title_map) %}
 {% set pid = node['id'] %}
-{% set title = title_map.get(pid, '(unknown)') %}
+{% if pid in title_map %}
 <li data-id="{{ pid }}">
     <div class="struct-row">
+        <span class="struct-toggle"></span>
         <span class="struct-handle">&#9776;</span>
-        <span class="struct-title">{{ title }}</span>
+        <span class="struct-title">{{ title_map[pid] }}</span>
         <button class="struct-rename-btn" title="Rename">&#9998;</button>
     </div>
     <ul class="structure-list">
@@ -20,6 +21,7 @@
     {% endfor %}
     </ul>
 </li>
+{% endif %}
 {% endmacro %}
 
 <h4>Page Structure</h4>
@@ -51,6 +53,7 @@
             {% if pid in page_id_title_map %}
             <li data-id="{{ pid }}">
                 <div class="struct-row">
+                    <span class="struct-toggle"></span>
                     <span class="struct-handle">&#9776;</span>
                     <span class="struct-title">{{ page_id_title_map[pid] }}</span>
                     <button class="struct-rename-btn" title="Rename">&#9998;</button>
@@ -64,8 +67,10 @@
     </div>
 </div>
 
-<div style="margin-top:16px">
+<div style="margin-top:16px; display:flex; gap:8px; align-items:center">
     <button id="structure-save-btn" class="btn btn-primary btn-sm">Save</button>
+    <button id="structure-expand-all-btn" type="button" class="btn btn-outline-secondary btn-sm">Expand all</button>
+    <button id="structure-collapse-all-btn" type="button" class="btn btn-outline-secondary btn-sm">Collapse all</button>
 </div>
 
 <style>
@@ -92,6 +97,17 @@
         margin: 2px 0;
         font-size: 13px;
     }
+    .struct-toggle {
+        width: 14px;
+        flex-shrink: 0;
+        font-size: 10px;
+        color: #6c757d;
+        cursor: pointer;
+        user-select: none;
+        text-align: center;
+    }
+    .struct-toggle.is-leaf { cursor: default; color: transparent; }
+    li.collapsed > .structure-list { display: none; }
     .struct-handle { cursor: grab; color: #adb5bd; flex-shrink: 0; }
     .struct-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .struct-rename-btn {

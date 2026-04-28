@@ -286,7 +286,8 @@ def wiki_group_delete_wikipage(group):
                 wp_toc, wp_html = wiki_md(group, wp_md)
                 _WikiPage.objects(id=wp.id).update_one(set__md=wp_md,
                                                        set__html=wp_html,
-                                                       set__toc=wp_toc)
+                                                       set__toc=wp_toc,
+                                                       pull__refs=page_to_delete)
             page_to_delete.delete()
 
     # Remove deleted page from the page tree

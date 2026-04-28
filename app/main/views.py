@@ -468,13 +468,23 @@ def wiki_structure_save(group):
     new_tree    = data.get('tree', [])
     new_orphans = data.get('orphans', [])
 
-    # Validate all referenced IDs exist in this group
+    # Drop ids that no longer reference real pages — self-heals stale tree data
+    # (e.g. nodes seeded from broken Home refs or pages deleted out of band).
     all_ids = list(_collect_tree_ids(new_tree)) + new_orphans
     with switch_db(WikiPage, group) as _WikiPage:
         existing_ids = {str(p.id) for p in _WikiPage.objects(id__in=all_ids).only('id')}
-    invalid = [i for i in all_ids if i not in existing_ids]
-    if invalid:
-        return jsonify({'error': 'Unknown page IDs: ' + ', '.join(invalid[:5])}), 400
+
+    def filter_tree(nodes):
+        result = []
+        for n in nodes:
+            if n.get('id') not in existing_ids:
+                continue
+            result.append({'id': n['id'],
+                           'children': filter_tree(n.get('children', []))})
+        return result
+
+    new_tree    = filter_tree(new_tree)
+    new_orphans = [pid for pid in new_orphans if pid in existing_ids]
 
     with switch_db(WikiPageTree, group) as _WikiPageTree:
         tree_doc = _WikiPageTree.objects.first()

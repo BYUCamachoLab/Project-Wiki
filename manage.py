@@ -59,13 +59,13 @@ def migrate_page_tree(force):
                     if ref_id in visited:
                         continue
                     visited.add(ref_id)
-                    # Fetch the ref page to follow its refs
+                    # Skip dangling refs (target page was deleted)
                     ref_page = _WikiPage.objects(id=ref_id)\
                         .only('id', 'refs').first()
-                    node = {'id': ref_id, 'children': []}
-                    if ref_page:
-                        node['children'] = build_children(ref_page)
-                    children.append(node)
+                    if ref_page is None:
+                        continue
+                    children.append({'id': ref_id,
+                                     'children': build_children(ref_page)})
                 return children
 
             # Seed top-level from Home's refs
@@ -77,10 +77,10 @@ def migrate_page_tree(force):
                 visited.add(ref_id)
                 ref_page = _WikiPage.objects(id=ref_id)\
                     .only('id', 'refs').first()
-                node = {'id': ref_id, 'children': []}
-                if ref_page:
-                    node['children'] = build_children(ref_page)
-                tree.append(node)
+                if ref_page is None:
+                    continue
+                tree.append({'id': ref_id,
+                             'children': build_children(ref_page)})
 
             # All remaining pages (not Home, not visited) go to orphans
             all_pages = _WikiPage.objects.only('id', 'title').all()

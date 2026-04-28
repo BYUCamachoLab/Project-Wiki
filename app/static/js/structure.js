@@ -8,12 +8,41 @@
     var csrfToken  = scriptEl ? scriptEl.getAttribute('data-csrf') : '';
 
     var alertEl = document.getElementById('structure-alert');
+    var alertTimer = null;
 
     function showAlert(msg, type) {
+        if (alertTimer) { clearTimeout(alertTimer); alertTimer = null; }
         alertEl.className = 'alert alert-' + (type || 'success');
         alertEl.textContent = msg;
         alertEl.style.display = 'block';
-        setTimeout(function () { alertEl.style.display = 'none'; }, 4000);
+        alertEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var dur = type === 'danger' ? 8000 : 4000;
+        alertTimer = setTimeout(function () { alertEl.style.display = 'none'; }, dur);
+    }
+
+    /* ── Collapse/expand toggle helpers ── */
+    function getChildList(li) {
+        return li.querySelector(':scope > .structure-list');
+    }
+    function hasChildren(li) {
+        var ul = getChildList(li);
+        return !!(ul && ul.querySelector(':scope > li'));
+    }
+    function refreshToggle(li) {
+        var toggleEl = li.querySelector(':scope > .struct-row > .struct-toggle');
+        if (!toggleEl) return;
+        if (!hasChildren(li)) {
+            toggleEl.classList.add('is-leaf');
+            toggleEl.innerHTML = '▶'; /* hidden via CSS color:transparent */
+            li.classList.remove('collapsed');
+            return;
+        }
+        toggleEl.classList.remove('is-leaf');
+        toggleEl.innerHTML = li.classList.contains('collapsed') ? '▶' : '▼';
+    }
+    function refreshAllToggles(root) {
+        if (!root) return;
+        root.querySelectorAll('li[data-id]').forEach(refreshToggle);
     }
 
     /* ── Sortable initialisation (recursive) ── */
@@ -24,6 +53,10 @@
         ghostClass: 'sortable-ghost',
         fallbackOnBody: true,
         swapThreshold: 0.65,
+        onSort: function () {
+            refreshAllToggles(document.getElementById('structure-tree'));
+            refreshAllToggles(document.getElementById('structure-orphans'));
+        },
     };
 
     function initSortable(el) {
@@ -34,8 +67,39 @@
         nested.forEach(function (ul) { Sortable.create(ul, sortableOptions); });
     }
 
-    initSortable(document.getElementById('structure-tree'));
-    initSortable(document.getElementById('structure-orphans'));
+    var treeEl    = document.getElementById('structure-tree');
+    var orphansEl = document.getElementById('structure-orphans');
+    initSortable(treeEl);
+    initSortable(orphansEl);
+    refreshAllToggles(treeEl);
+    refreshAllToggles(orphansEl);
+
+    /* ── Toggle click ── */
+    document.addEventListener('click', function (e) {
+        var toggle = e.target.closest('.struct-toggle');
+        if (!toggle) return;
+        var li = toggle.closest('li[data-id]');
+        if (!li || !hasChildren(li)) return;
+        li.classList.toggle('collapsed');
+        refreshToggle(li);
+    });
+
+    /* ── Expand all / Collapse all ── */
+    function setAllCollapsed(collapsed) {
+        if (!treeEl) return;
+        treeEl.querySelectorAll('li[data-id]').forEach(function (li) {
+            if (collapsed && hasChildren(li)) {
+                li.classList.add('collapsed');
+            } else {
+                li.classList.remove('collapsed');
+            }
+        });
+        refreshAllToggles(treeEl);
+    }
+    var expandBtn   = document.getElementById('structure-expand-all-btn');
+    var collapseBtn = document.getElementById('structure-collapse-all-btn');
+    if (expandBtn)   expandBtn.addEventListener('click',   function () { setAllCollapsed(false); });
+    if (collapseBtn) collapseBtn.addEventListener('click', function () { setAllCollapsed(true);  });
 
     /* ── Tree serialization ── */
     function serializeList(ul) {
