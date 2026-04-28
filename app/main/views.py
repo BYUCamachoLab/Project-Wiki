@@ -35,7 +35,8 @@ def _add_pages_to_tree(group, parent_id, new_ids):
     Pages already present anywhere in the tree are skipped (first-placement wins).
     Silently no-ops if no WikiPageTree exists yet.
     """
-    with switch_db(WikiPageTree, group) as _WikiPageTree:
+    with switch_db(WikiPageTree, group) as _WikiPageTree, \
+            switch_db(WikiPage, group) as _WikiPage:
         tree_doc = _WikiPageTree.objects.first()
         if tree_doc is None:
             return
@@ -43,6 +44,15 @@ def _add_pages_to_tree(group, parent_id, new_ids):
         existing_ids = set(_collect_tree_ids(tree_doc.tree)) | set(tree_doc.orphans)
         to_add = [pid for pid in new_ids if pid not in existing_ids]
         if not to_add:
+            return
+
+        # Home is the implicit root and not represented as a tree node;
+        # pages linked from Home become top-level tree entries.
+        home = _WikiPage.objects(title='Home').only('id').first()
+        if home is not None and str(home.id) == parent_id:
+            for cid in to_add:
+                tree_doc.tree.append({'id': cid, 'children': []})
+            tree_doc.save()
             return
 
         def insert_into(nodes, target_parent_id, child_ids):
