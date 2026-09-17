@@ -1,16 +1,86 @@
 # If you have your own domain, replace "0.0.0.0:31415" with it.
-# In that situation, access your url with "https" prefix, i.e. "https://<your domain>".
-# 0.0.0.0:31415 {
-localhost:80 {
+# In that situation, access your URL with "https" prefix, i.e. "https://<your domain>".
+# 0.0.0.0:31415
+
+https://camacholab.ee.byu.edu {
+
     root ./
-    proxy / 127.0.0.1:8080 {
-        transparent
+
+    # Send /inventree/* to the InvenTree port, stripping the prefix
+    # # Static files
+    # handle_path /inventree/static/* {
+    #     root * /home/camacho/inventree_docker/inventree-data/static
+    #     file_server
+    # }
+
+    # # Media files
+    # handle_path /inventree/media/* {
+    #     root * /home/camacho/inventree_docker/inventree-data/media
+    #     header Content-Disposition "attachment"
+    #     file_server
+    # }
+
+    # # Backend (Gunicorn)
+    # reverse_proxy /inventree* 127.0.0.1:8150 {
+    #     header_up X-Forwarded-Proto {scheme}
+    #     header_up X-Forwarded-Host  {host}
+    # }
+   
+
+    
+    reverse_proxy /qrng* 127.0.0.1:8090
+    # {
+    #     transparent
+    # }
+
+    reverse_proxy /music* 127.0.0.1:8091
+    # {
+    #     transparent
+    # }
+
+    # proxy /monitor 127.0.0.1:8092 {
+    #     transparent
+    # }
+
+    reverse_proxy 127.0.0.1:8080 
+    
+
+    log {
+        output file ../Project_Wiki_Data/log/caddy.log
     }
-    log ../Project_Wiki_Data/log/caddy.log
-    timeouts 1m
+    # timeouts 1m
     # If you want to use your own https certificate and key, 
     # un-comment the next line, and use actual path.
     # Otherwise, caddy will automatically get a certificate,
     # if you used your own domain. 
     # tls /path/to/certificate /path/to/key
+    # tls ../certificate/camacholab_ee_byu_edu.crt ../certificate/camacholab_ee_byu_edu.key
 }
+
+
+# =================================================================
+# SERVER 2: INVENTREE (Listens on Port 8150)
+# =================================================================
+https://camacholab.ee.byu.edu:8443 {
+    
+    # 1. Serve Static Files (CSS/JS)
+    # Because we are on a dedicated port, we can serve "/static" directly
+    # without worrying about conflicting with the Wiki's static files.
+    handle_path /static/* {
+        root * /home/camacho/inventree_docker/inventree-data/static
+        file_server
+    }
+
+    # 2. Serve Media Files (Images)
+    handle_path /media/* {
+        root * /home/camacho/inventree_docker/inventree-data/media
+        file_server
+    }
+
+    # 3. Proxy Application
+    # We send traffic to the Docker container (which is mapped to 8092)
+    reverse_proxy 127.0.0.1:8092
+}
+
+
+

@@ -9,3 +9,5 @@ config.py.env
 Project_Wiki_Data/
 .superpowers/
 backups/
+# Caddy cert store, if it ever lands here again (see deployments/README.md)
+caddy/

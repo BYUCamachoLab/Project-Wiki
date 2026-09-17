@@ -1,0 +1,28 @@
+[Unit]
+Description=Caddy reverse proxy for camacholab.ee.byu.edu
+Documentation=https://github.com/BYUCamachoLab/Project-Wiki
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=notify
+WorkingDirectory=/home/camacho/Wiki/Project-Wiki
+# Runs as root to bind privileged ports 80/443.
+#
+# systemd sets no $HOME for a unit without User=. Without this line Caddy
+# cannot resolve its data directory, falls back to ./caddy (inside this git
+# repo!), and re-issues certificates from Let's Encrypt instead of reusing
+# the existing store in /root/.local/share/caddy.
+Environment=HOME=/root
+# Catch Caddyfile typos before tearing down the running server.
+ExecStartPre=/usr/bin/caddy validate --config PW_Caddyfile --adapter caddyfile
+ExecStart=/usr/bin/caddy run --config PW_Caddyfile --adapter caddyfile
+# `systemctl reload caddy` picks up Caddyfile edits with no dropped connections.
+ExecReload=/usr/bin/caddy reload --config PW_Caddyfile --adapter caddyfile --force
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
